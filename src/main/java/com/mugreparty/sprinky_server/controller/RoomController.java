@@ -49,6 +49,7 @@ public class RoomController {
                 "code", r.getCode(),
                 "state", r.getState().name(),
                 "roundNo", r.getRoundNo(),
+                "promptText", r.getCurrentRound() != null ? r.getCurrentRound().getPromptText() : null,    
                 "players", r.getPlayers().values().stream()
                     .map(p -> Map.of("id", p.getId(), "nick", p.getNickname(), "score", p.getScore()))
                     .toList()
@@ -72,5 +73,12 @@ public class RoomController {
         return ResponseEntity.accepted().build();
     }
 
+    @PostMapping("/{code}/next")
+    public ResponseEntity<Void> nextRound(
+            @PathVariable String code,
+            @RequestHeader("X-Host-Token") String hostToken) {
+        roomService.startNextRound(code, hostToken);
+        return ResponseEntity.accepted().build();
+    }
 
 }

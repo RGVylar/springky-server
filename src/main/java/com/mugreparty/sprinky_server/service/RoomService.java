@@ -21,6 +21,11 @@ import com.mugreparty.sprinky_server.dto.StateUpdate;
 public class RoomService {
 
     private static final int MAX_PLAYERS = 8;
+
+    // Duraciones (puedes ajustarlas)
+    private static final long PROMPT_DURATION_MS = 10_000;      // 10s para probar
+    private static final long SUBMITTING_DURATION_MS = 30_000;  // 30s para probar
+
     private final SimpMessagingTemplate ws;
     public RoomService(SimpMessagingTemplate ws) { this.ws = ws; }
 
@@ -88,6 +93,8 @@ public class RoomService {
     }
 
     private void broadcast(Room room) {
+        var prompt = (room.getCurrentRound() != null) ? room.getCurrentRound().getPromptText() : null;
+
         var view = new StateUpdate(
             room.getCode(),
             room.getState().name(),
@@ -95,7 +102,8 @@ public class RoomService {
             room.getDeadlineEpochMs(),
             room.getPlayers().values().stream()
                 .map(p -> new StateUpdate.PlayerView(p.getId(), p.getNickname(), p.getScore(), p.isConnected()))
-                .toList()
+                .toList(),
+            prompt
         );           
         ws.convertAndSend("/topic/rooms/" + room.getCode(), view); 
     }
@@ -140,7 +148,7 @@ public class RoomService {
         switch (room.getState()) {
             case PROMPT -> {
                 room.setState(GameState.SUBMITTING);
-                room.setDeadlineEpochMs(now + 30_000); // 30s para enviar respuestas
+                room.setDeadlineEpochMs(now + SUBMITTING_DURATION_MS);
                 broadcast(room);
             }
             case SUBMITTING -> {
@@ -168,7 +176,9 @@ public class RoomService {
         var room = rooms.get(code);
         if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
         if (room.getState() != GameState.SUBMITTING) throw new IllegalArgumentException("NOT_SUBMITTING");
-    
+        if (round.getAnswers().containsKey(playerId)) {
+            return; // ya respondió, ignorar
+        }
         var bound = playerTokens.get(playerToken); // "code:playerId"
         if (bound == null || !bound.startsWith(code + ":")) throw new IllegalArgumentException("PLAYER_TOKEN_INVALID");
     
@@ -180,5 +190,38 @@ public class RoomService {
         broadcast(room);
     }
     
+    public void startNextRound(String code, String hostToken) {
+        var room = rooms.get(code);
+        if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
+    
+        // Validar hostToken con el MAPA que ya usas: hostToken -> "code:hostId"
+        var bound = hostTokens.get(hostToken);
+        if (bound == null || !bound.startsWith(code + ":"))
+            throw new IllegalArgumentException("HOST_TOKEN_INVALID");
+    
+        if (room.getState() != GameState.SCORING)
+            throw new IllegalStateException("INVALID_STATE"); // solo dejamos avanzar desde SCORING
+    
+        // Crear NUEVA ronda (sube roundNo y limpia respuestas)
+        nextRound(room);
+    
+        // Pasar a PROMPT y poner deadline de PROMPT
+        room.setState(GameState.PROMPT);
+        room.setDeadlineEpochMs(System.currentTimeMillis() + PROMPT_DURATION_MS);
+    
+        broadcast(room);
+    }
+    
+    // Crea una nueva ronda en la sala (helper privado del servicio)
+    private void nextRound(Room room) {
+        room.setRoundNo(room.getRoundNo() + 1);
+    
+        var round = Round.builder()
+                .promptId("q" + room.getRoundNo())
+                .promptText("Completa: Miyazaki desayuna _____.") // luego lo cambiaremos por un generador real o una lista
+                .build();
+    
+        room.setCurrentRound(round);
+    }
 
 }

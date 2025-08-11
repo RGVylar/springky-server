@@ -1,3 +1,4 @@
+<meta charset="UTF-8">
 <!doctype html>
 <html>
   <body>
@@ -15,7 +16,7 @@
         const sock = new SockJS('/ws');
         const stomp = Stomp.over(sock); stomp.debug = null;
         stomp.connect({}, () => {
-          log('Connected → subscribing to /topic/rooms/' + code);
+          log('Connected to subscribing to /topic/rooms/' + code);
           stomp.subscribe('/topic/rooms/' + code, msg => log('UPDATE: ' + msg.body));
         }, err => log('ERROR: ' + err));
       };

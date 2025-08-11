@@ -8,11 +8,13 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import com.mugreparty.sprinky_server.domain.GameState;
 import com.mugreparty.sprinky_server.domain.Player;
 import com.mugreparty.sprinky_server.domain.Room;
+import com.mugreparty.sprinky_server.domain.Round;
 import com.mugreparty.sprinky_server.dto.StateUpdate;
 
 @Service // Logica de la sala
@@ -108,10 +110,75 @@ public class RoomService {
 
         if(room.getPlayers().size() < 2) throw new IllegalArgumentException("NEED_2_PLAYERS_MIN");
 
-        room.setState((GameState.PROMT));
+        room.setState((GameState.PROMPT));
         room.setRoundNo(room.getRoundNo() + 1 );
+
+        var round = Round.builder()
+                .promptId("q"+room.getRoundNo())
+                .promptText("Completa: Miyazaki desayuna _____.")
+                .build();
+        room.setCurrentRound(round);
+
+        long now = System.currentTimeMillis();
         room.setDeadlineEpochMs(System.currentTimeMillis() + 30_000); //30 segundos
 
         broadcast(room);
     }
+
+    @Scheduled(fixedRate = 1_000)
+    public void tick() {
+        long now = System.currentTimeMillis();
+        rooms.values().forEach(room -> {
+            if (room.getDeadlineEpochMs() > 0 && now >= room.getDeadlineEpochMs()) {
+                advance(room);
+            }
+        });
+    }
+
+    private void advance(Room room) {
+        long now = System.currentTimeMillis();
+        switch (room.getState()) {
+            case PROMPT -> {
+                room.setState(GameState.SUBMITTING);
+                room.setDeadlineEpochMs(now + 30_000); // 30s para enviar respuestas
+                broadcast(room);
+            }
+            case SUBMITTING -> {
+                room.setState(GameState.SCORING);
+                room.setDeadlineEpochMs(0); // fin de fase, sin deadline
+                // MVP: puntuación trivial (1 punto por enviar algo)
+                room.getCurrentRound().getAnswers().forEach((playerId, ans) -> {
+                    var p = room.getPlayers().get(playerId);
+                    if (p != null && ans != null && !ans.isBlank()) {
+                        p.setScore(p.getScore() + 1);
+                    }
+                });
+                broadcast(room);
+            }
+            case SCORING -> {
+                // fin de ronda; podríamos volver a PROMPT o terminar
+                room.setState(GameState.END);
+                broadcast(room);
+            }
+            default -> { /* LOBBY/END: nada */ }
+        }
+    }
+
+    public void submitAnswer(String code, String playerToken, String answer) {
+        var room = rooms.get(code);
+        if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
+        if (room.getState() != GameState.SUBMITTING) throw new IllegalArgumentException("NOT_SUBMITTING");
+    
+        var bound = playerTokens.get(playerToken); // "code:playerId"
+        if (bound == null || !bound.startsWith(code + ":")) throw new IllegalArgumentException("PLAYER_TOKEN_INVALID");
+    
+        String playerId = bound.substring(code.length() + 1);
+        // guarda la respuesta (idempotente: última respuesta sustituye)
+        room.getCurrentRound().getAnswers().put(playerId, answer.trim());
+    
+        // opcional: feedback inmediato por WS
+        broadcast(room);
+    }
+    
+
 }

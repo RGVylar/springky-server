@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.mugreparty.sprinky_server.dto.CreateRoomResponse;
 import com.mugreparty.sprinky_server.dto.JoinRoomRequest;
 import com.mugreparty.sprinky_server.dto.JoinRoomResponse;
+import com.mugreparty.sprinky_server.dto.SubmitAnswerRequest;
 import com.mugreparty.sprinky_server.service.RoomService;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -62,5 +63,14 @@ public class RoomController {
         roomService.startGame(code, hostToken);
         return ResponseEntity.accepted().build();
     }
+
+    @PostMapping("/{code}/answer")
+    public ResponseEntity<Void> submitAnswer(@PathVariable String code,
+        @RequestHeader("X-Player-Token") String playerToken,
+        @RequestBody @jakarta.validation.Valid SubmitAnswerRequest req) {
+        roomService.submitAnswer(code, playerToken, req.answer());
+        return ResponseEntity.accepted().build();
+    }
+
 
 }

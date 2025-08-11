@@ -1,0 +1,53 @@
+ ┌────────────────────────────┐
+ │        CREAR SALA          │
+ │ POST /rooms → hostToken    │
+ └─────────────┬──────────────┘
+               │
+               ▼
+ ┌────────────────────────────┐
+ │     UNIR JUGADORES         │
+ │ POST /rooms/{code}/join    │
+ │ → playerToken              │
+ └─────────────┬──────────────┘
+               │
+               ▼
+ ┌────────────────────────────┐
+ │    INICIAR PARTIDA         │
+ │ POST /rooms/{code}/start   │
+ │ (header: X-Host-Token)     │
+ │ WS → /topic/rooms/{code}   │
+ │ state = PROMPT             │
+ └─────────────┬──────────────┘
+               │
+               ▼
+ ┌────────────────────────────┐
+ │ ENVIAR PREGUNTA (PROMPT)   │
+ │ WS msg: { type: "QUESTION" │
+ │  question: "...",          │
+ │  deadline: epochMs }       │
+ └─────────────┬──────────────┘
+               │
+               ▼
+ ┌────────────────────────────┐
+ │    RESPUESTAS JUGADORES    │
+ │ POST /rooms/{code}/answer  │
+ │ (header: X-Player-Token)   │
+ │ state = ANSWER             │
+ └─────────────┬──────────────┘
+               │
+               ▼
+ ┌────────────────────────────┐
+ │ MOSTRAR RESULTADOS         │
+ │ WS msg: { type: "RESULTS", │
+ │ scores: [...] }            │
+ │ state = RESULTS            │
+ └─────────────┬──────────────┘
+               │
+               ▼
+ ┌────────────────────────────┐
+ │ ¿QUEDAN RONDAS?            │
+ │   ┌─────Sí──────┐          │
+ │   │             │          │
+ │   ▼             ▼          │
+ │ PROMPT NUEVO   FIN PARTIDA │
+ └────────────────────────────┘

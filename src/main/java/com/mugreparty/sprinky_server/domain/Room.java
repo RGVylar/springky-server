@@ -13,6 +13,7 @@ public class Room {
     private GameState state;
     private int roundNo;
     private long deadlineEpochMs;
+    private Round currentRound;
 
     @Builder.Default
     private Map<String, Player> players = new LinkedHashMap<>();

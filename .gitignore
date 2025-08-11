@@ -1,0 +1,11 @@
+# Maven
+target/
+# IDE
+.idea/
+*.iml
+# SO
+.DS_Store
+# Logs
+logs/
+# Creds locales
+.env

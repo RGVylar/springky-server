@@ -11,7 +11,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import com.mugreparty.sprinky_server.domain.GameMode;
+import com.mugreparty.sprinky_server.domain.Room.GameMode;
 import com.mugreparty.sprinky_server.domain.GameState;
 import com.mugreparty.sprinky_server.domain.Player;
 import com.mugreparty.sprinky_server.domain.Room;
@@ -266,3 +266,4 @@ public class RoomService {
     }      
 
 }
+

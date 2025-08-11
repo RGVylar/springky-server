@@ -19,5 +19,4 @@ public class Room {
     @Builder.Default
     private Map<String, Player> players = new LinkedHashMap<>();
 }
-
-public enum GameMode { FAST, MANUAL }
+enum GameMode { FAST, MANUAL }

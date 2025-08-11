@@ -14,7 +14,10 @@ public class Room {
     private int roundNo;
     private long deadlineEpochMs;
     private Round currentRound;
+    private GameMode mode;
 
     @Builder.Default
     private Map<String, Player> players = new LinkedHashMap<>();
 }
+
+public enum GameMode { FAST, MANUAL }

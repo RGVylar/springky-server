@@ -81,4 +81,12 @@ public class RoomController {
         return ResponseEntity.accepted().build();
     }
 
+    @PostMapping("/{code}/mode/{mode}")
+    public ResponseEntity<Void> setMode(@PathVariable String code,
+                                        @PathVariable String mode,
+                                        @RequestHeader("X-Host-Token") String hostToken) {
+    roomService.setMode(code, hostToken, mode);
+    return ResponseEntity.accepted().build();
+    }
+
 }

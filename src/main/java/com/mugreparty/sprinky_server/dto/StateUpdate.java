@@ -8,7 +8,9 @@ public record StateUpdate (
     int roundNo,
     long deadlineEpochMs,
     List<PlayerView> players,
-    String promptText
+    String promptText,
+    String mode,
+    int answersCount
 ) {
     public record PlayerView(String id, String nickname, int score, boolean connected) {}
 }

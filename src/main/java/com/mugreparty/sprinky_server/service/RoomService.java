@@ -7,16 +7,20 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import com.mugreparty.sprinky_server.domain.GameState;
 import com.mugreparty.sprinky_server.domain.Player;
 import com.mugreparty.sprinky_server.domain.Room;
+import com.mugreparty.sprinky_server.dto.StateUpdate;
 
 @Service // Logica de la sala
 public class RoomService {
 
     private static final int MAX_PLAYERS = 8;
+    private final SimpMessagingTemplate ws;
+    public RoomService(SimpMessagingTemplate ws) { this.ws = ws; }
 
     private final Map<String, Room> rooms = new ConcurrentHashMap<>();
     private final Map<String, String> hostTokens = new ConcurrentHashMap<>();
@@ -44,7 +48,7 @@ public class RoomService {
 
         String hostToken = UUID.randomUUID().toString();
         hostTokens.put(hostToken, code + ":" + hostId);
-
+        broadcast(room);
         return new Created(code, hostToken);
     }
 
@@ -81,4 +85,33 @@ public class RoomService {
         return rooms.containsKey(code) ? nextCode() :code;
     }
 
+    private void broadcast(Room room) {
+        var view = new StateUpdate(
+            room.getCode(),
+            room.getState().name(),
+            room.getRoundNo(),
+            room.getDeadlineEpochMs(),
+            room.getPlayers().values().stream()
+                .map(p -> new StateUpdate.PlayerView(p.getId(), p.getNickname(), p.getScore(), p.isConnected()))
+                .toList()
+        );           
+        ws.convertAndSend("/topic/rooms/" + room.getCode(), view); 
+    }
+
+    public void startGame(String code, String hostToken) {
+        var room = rooms.get(code);
+        if(room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
+        
+        var bound = hostTokens.get(hostToken);
+        if(bound == null || !bound.startsWith(code + ":"))
+          throw new IllegalArgumentException("HOST_TOKEN_INVALID");
+
+        if(room.getPlayers().size() < 2) throw new IllegalArgumentException("NEED_2_PLAYERS_MIN");
+
+        room.setState((GameState.PROMT));
+        room.setRoundNo(room.getRoundNo() + 1 );
+        room.setDeadlineEpochMs(System.currentTimeMillis() + 30_000); //30 segundos
+
+        broadcast(room);
+    }
 }

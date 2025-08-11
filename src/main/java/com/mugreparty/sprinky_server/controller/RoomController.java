@@ -14,6 +14,7 @@ import com.mugreparty.sprinky_server.dto.JoinRoomRequest;
 import com.mugreparty.sprinky_server.dto.JoinRoomResponse;
 import com.mugreparty.sprinky_server.service.RoomService;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 
 
 @RestController
@@ -52,6 +53,14 @@ public class RoomController {
                     .toList()
             )))
             .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @PostMapping("/{code}/start")
+    public ResponseEntity<Void> start(
+        @PathVariable String code,
+        @RequestHeader("X-Host-Token") String hostToken) {
+        roomService.startGame(code, hostToken);
+        return ResponseEntity.accepted().build();
     }
 
 }

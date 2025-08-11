@@ -1,4 +1,4 @@
-epackage com.mugreparty.sprinky_server.service;
+package com.mugreparty.sprinky_server.service;
 
 import java.security.SecureRandom;
 import java.time.Instant;

@@ -1,10 +1,11 @@
-package com.mugreparty.sprinky_server.service;
+epackage com.mugreparty.sprinky_server.service;
 
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -25,6 +26,19 @@ public class RoomService {
 
     // Duraciones (puedes ajustarlas)
     private static final long PROMPT_DURATION_MS = 10_000;      // 10s para probar
+    
+private static final List<String> PROMPTS = List.of(
+    "Completa: Miyazaki desayuna ____",
+    "Completa: La vida es como ____",
+    "Completa: Mi color favorito es ____",
+    "Completa: En la playa encuentro ____"
+);
+
+
+    private String getRandomPrompt() {
+        return PROMPTS.get(random.nextInt(PROMPTS.size()));
+    }
+
     private static final long SUBMITTING_DURATION_MS = 30_000;  // 30s para probar
     private static final long SCORING_DURATION_MS = 5_000; // 30s para FAST
 
@@ -133,7 +147,8 @@ public class RoomService {
 
         var round = Round.builder()
                 .promptId("q"+room.getRoundNo())
-                .promptText("Completa: Miyazaki desayuna _____.")
+
+        .promptText(getRandomPrompt())
                 .build();
         room.setCurrentRound(round);
 
@@ -238,16 +253,18 @@ public class RoomService {
     }
     
     // Crea una nueva ronda en la sala (helper privado del servicio)
-    private void nextRound(Room room) {
+      private void nextRound(Room room) {
         room.setRoundNo(room.getRoundNo() + 1);
-    
+
         var round = Round.builder()
                 .promptId("q" + room.getRoundNo())
-                .promptText("Completa: Miyazaki desayuna _____.") // luego lo cambiaremos por un generador real o una lista
+                .promptText(getRandomPrompt())
                 .build();
-    
         room.setCurrentRound(round);
     }
+
+
+    
 
     public void setMode(String code, String hostToken, String modeStr) {
         var room = rooms.get(code);
@@ -266,4 +283,5 @@ public class RoomService {
     }      
 
 }
+
 

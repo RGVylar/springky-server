@@ -4,37 +4,60 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title th:text="'Sala ' + ${code}">Sala</title>
-  <style>
-    body{font-family:sans-serif;display:grid;place-items:center;min-height:100dvh;background:#0b0c10;color:#e5e7eb}
-    .card{background:#15171c;padding:1.5rem;border-radius:16px;box-shadow:0 10px 30px rgb(0 0 0 / .3);width:min(680px,92vw)}
-    .row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
-    input,button{padding:.6rem .9rem;border-radius:10px;border:0}
-    input{flex:1;min-width:160px;background:#0f1116;color:#e5e7eb;border:1px solid #2a2d34}
-    button{background:#3b82f6;color:white;cursor:pointer}
-    ul{list-style:none;padding:0;margin:.5rem 0;display:grid;gap:.25rem}
-    .muted{opacity:.7}
-    .danger{background:#ef4444}
-    .ok{background:#22c55e}
-  </style>
+  <link rel="stylesheet" href="lobby.css">
 </head>
 <body>
   <div class="card">
-    <h2>Lobby — sala <span id="code" th:text="${code}">XXXX</span></h2>
+    <h2 class="title">Lobby — sala <span id="code" th:text="${code}">XXXX</span></h2>
 
-    <div id="joinBox" class="row">
-      <input id="nickname" placeholder="Tu nombre"/>
-      <button onclick="join()">Unirse</button>
-    </div>
+    <!-- LOBBY -->
+    <section id="lobbyView">
+      <div id="joinBox" class="row">
+        <input id="nickname" placeholder="Tu nombre"/>
+        <button onclick="join()">Unirse</button>
+      </div>
 
-    <p class="muted">Jugadores</p>
-    <ul id="players"></ul>
+      <p class="muted section-title">Jugadores</p>
+      <ul id="players"></ul>
 
-    <div class="row">
-      <button id="startBtn" class="ok" disabled onclick="startGame()">Iniciar partida</button>
-      <span id="status" class="muted"></span>
-    </div>
+      <div class="row">
+        <button id="startBtn" class="ok" disabled onclick="startGame()">Iniciar partida</button>
+        <span id="status" class="muted"></span>
+      </div>
+    </section>
 
-    <pre id="log" class="muted" style="max-height:180px;overflow:auto"></pre>
+    <!-- PROMPT / SUBMITTING -->
+    <section id="playView" class="hidden">
+      <div class="row">
+        <span id="phasePill" class="pill">PROMPT</span>
+        <span id="deadline" class="pill countdown mono">00:00</span>
+      </div>
+      <h3 id="promptText" style="margin:.25rem 0 0">…</h3>
+
+      <div class="spacer"></div>
+      <div class="row">
+        <input id="answerInput" placeholder="Escribe tu respuesta…" />
+        <button id="sendAnswerBtn" class="btn-secondary" onclick="sendAnswer()">Enviar</button>
+      </div>
+      <p id="playHint" class="muted">Esperando a que empiece la ronda…</p>
+      <div class="hr"></div>
+      <button class="btn-secondary btn-block" onclick="backToLobby()">Volver al lobby</button>
+    </section>
+
+    <!-- SCORING -->
+    <section id="scoreView" class="hidden">
+      <div class="row">
+        <span class="pill">PUNTUACIÓN</span>
+        <span id="scoreDeadline" class="pill countdown mono">00:00</span>
+      </div>
+      <p class="muted">Mostrando puntuaciones…</p>
+      <ul id="scorePlayers"></ul>
+      <div class="hr"></div>
+      <button class="btn-secondary btn-block" onclick="backToLobby()">Volver al lobby</button>
+    </section>
+
+    <div class="hr"></div>
+    <pre id="log" class="muted mono"></pre>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
@@ -47,28 +70,51 @@
   </script>
 
   <script>
+    // -------------------- State / helpers --------------------
     const log = m => document.getElementById('log').textContent += m + "\n";
     let PLAYER_TOKEN = localStorage.getItem(`sprinky:${CODE}:token`) || null;
+    let LAST_STATE = null;
+    let DEADLINE_MS = 0;
+    let countdownTimer = null;
 
-    // Estado inicial
+    const $ = sel => document.querySelector(sel);
+    const show = (id, on=true) => (document.getElementById(id).classList.toggle('hidden', !on), on);
+
+    function setCountdown(target, elId){
+      clearInterval(countdownTimer);
+      function tick(){
+        const now = Date.now();
+        const left = Math.max(0, target - now);
+        const s = Math.floor(left/1000);
+        const mm = String(Math.floor(s/60)).padStart(2,'0');
+        const ss = String(s%60).padStart(2,'0');
+        document.getElementById(elId).textContent = `${mm}:${ss}`;
+      }
+      tick();
+      countdownTimer = setInterval(tick, 250);
+    }
+
+    // -------------------- Initial refresh --------------------
     refresh();
 
-    // WS
+    // -------------------- WebSocket --------------------
     const sock = new SockJS(WS_ENDPOINT);
     const stomp = Stomp.over(sock); stomp.debug = null;
     stomp.connect({}, () => {
       log("WS conectado");
       stomp.subscribe(ROOM_TOPIC, msg => {
         log("UPDATE: " + msg.body);
-        refresh(); // cada update, refrescamos la lista y el botón
+        refresh(); // rehidrata con GET
       });
     }, err => log("WS ERROR: " + err));
 
+    // -------------------- REST / UI logic --------------------
     async function refresh(){
       const res = await fetch(`/rooms/${CODE}`);
-      if(!res.ok) return;
+      if(!res.ok){ log("No se pudo cargar room"); return; }
       const room = await res.json();
-      // pinta jugadores
+
+      // Players list (en lobby)
       const ul = document.getElementById('players'); ul.innerHTML = "";
       const players = (room.players || []);
       players.forEach(p => {
@@ -76,11 +122,63 @@
         li.textContent = `${p.nick} (${p.score ?? 0})`;
         ul.appendChild(li);
       });
-      // habilita "Iniciar" si hay al menos 2 jugadores
+
+      // lobby controls
       document.getElementById('startBtn').disabled = players.length < 2 || !PLAYER_TOKEN;
       document.getElementById('status').textContent =
         players.length < 2 ? "Esperando a que se una otra persona…" :
         (!PLAYER_TOKEN ? "Únete para poder iniciar." : "Listo para iniciar.");
+
+      if(PLAYER_TOKEN){
+        document.getElementById('joinBox').style.display = 'none';
+      }
+
+      // phase switch
+      const state = room.state || "LOBBY";
+      LAST_STATE = state;
+      DEADLINE_MS = room.deadlineEpochMs || 0;
+
+      if(state === "LOBBY"){
+        show("lobbyView", true);
+        show("playView", false);
+        show("scoreView", false);
+        clearInterval(countdownTimer);
+      }
+      else if(state === "PROMPT" || state === "SUBMITTING"){
+        // setup
+        show("lobbyView", false);
+        show("playView", true);
+        show("scoreView", false);
+
+        document.getElementById("promptText").textContent = room.promptText || "Sin frase";
+        document.getElementById("phasePill").textContent = state;
+
+        const answering = (state === "SUBMITTING");
+        document.getElementById("answerInput").disabled = !answering;
+        document.getElementById("sendAnswerBtn").disabled = !answering;
+
+        document.getElementById("playHint").textContent =
+          answering ? "¡Responde ahora! Tienes poco tiempo." : "Leyendo el prompt… en breve podrás responder.";
+
+        if(DEADLINE_MS > 0) setCountdown(DEADLINE_MS, "deadline");
+      }
+      else if(state === "SCORING"){
+        show("lobbyView", false);
+        show("playView", false);
+        show("scoreView", true);
+
+        // pintar scores actuales
+        const sul = document.getElementById('scorePlayers'); sul.innerHTML = "";
+        players
+          .sort((a,b)=>(b.score??0)-(a.score??0))
+          .forEach(p => {
+            const li = document.createElement('li');
+            li.textContent = `${p.nick} — ${p.score ?? 0} pts`;
+            sul.appendChild(li);
+          });
+
+        if(DEADLINE_MS > 0) setCountdown(DEADLINE_MS, "scoreDeadline");
+      }
     }
 
     async function join(){
@@ -108,6 +206,36 @@
       else if(r.status === 409) log("Necesitáis al menos 2 jugadores o ya está iniciada.");
       else if(r.status === 401) log("Falta autenticación.");
       else log("No se pudo iniciar.");
+    }
+
+    async function sendAnswer(){
+      const input = document.getElementById('answerInput');
+      const val = input.value.trim();
+      if(!val){ input.focus(); return; }
+      try{
+        const r = await fetch(`/rooms/${CODE}/answer`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', 'X-Player-Token': PLAYER_TOKEN },
+          body: JSON.stringify({ answer: val })
+        });
+        if(r.ok){
+          log("Respuesta enviada ✅");
+          input.value = "";
+          input.disabled = true;
+          document.getElementById('sendAnswerBtn').disabled = true;
+          document.getElementById('playHint').textContent = "Respuesta enviada. Espera a puntuación…";
+        }else{
+          log("No se pudo enviar la respuesta.");
+        }
+      }catch(e){
+        log("Error de red al enviar respuesta.");
+      }
+    }
+
+    function backToLobby(){
+      show("lobbyView", true);
+      show("playView", false);
+      show("scoreView", false);
     }
   </script>
 </body>

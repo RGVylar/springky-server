@@ -4,7 +4,7 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title th:text="'Sala ' + ${code}">Sala</title>
-  <link rel="stylesheet" href="lobby.css">
+  <link rel="stylesheet" href="/lobby.css">
 </head>
 <body>
   <div class="card">
@@ -71,7 +71,12 @@
 
   <script>
     // -------------------- State / helpers --------------------
-    const log = m => document.getElementById('log').textContent += m + "\n";
+    //const log = m => document.getElementById('log').textContent += m + "\n";
+    const log = m => {
+      const el = document.getElementById('log');
+      el.textContent += m + "\n";
+      el.scrollTop = el.scrollHeight; // <-- autoscroll al final
+    };
     let PLAYER_TOKEN = localStorage.getItem(`sprinky:${CODE}:token`) || null;
     let LAST_STATE = null;
     let DEADLINE_MS = 0;
@@ -85,10 +90,13 @@
       function tick(){
         const now = Date.now();
         const left = Math.max(0, target - now);
-        const s = Math.floor(left/1000);
+        const s = Math.ceil(left/1000);
         const mm = String(Math.floor(s/60)).padStart(2,'0');
         const ss = String(s%60).padStart(2,'0');
         document.getElementById(elId).textContent = `${mm}:${ss}`;
+        if(left <= 0){
+          clearInterval(countdownTimer);
+        }
       }
       tick();
       countdownTimer = setInterval(tick, 250);
@@ -143,6 +151,8 @@
         show("playView", false);
         show("scoreView", false);
         clearInterval(countdownTimer);
+        document.getElementById("deadline").textContent = "00:00";
+        document.getElementById("scoreDeadline").textContent = "00:00";
       }
       else if(state === "PROMPT" || state === "SUBMITTING"){
         // setup
@@ -160,7 +170,9 @@
         document.getElementById("playHint").textContent =
           answering ? "¡Responde ahora! Tienes poco tiempo." : "Leyendo el prompt… en breve podrás responder.";
 
+        clearInterval(countdownTimer);
         if(DEADLINE_MS > 0) setCountdown(DEADLINE_MS, "deadline");
+        else document.getElementById("deadline").textContent = "00:00";
       }
       else if(state === "SCORING"){
         show("lobbyView", false);
@@ -176,8 +188,9 @@
             li.textContent = `${p.nick} — ${p.score ?? 0} pts`;
             sul.appendChild(li);
           });
-
+        clearInterval(countdownTimer);
         if(DEADLINE_MS > 0) setCountdown(DEADLINE_MS, "scoreDeadline");
+        else document.getElementById("scoreDeadline").textContent = "00:00";
       }
     }
 

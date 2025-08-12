@@ -77,6 +77,7 @@ public class RoomController {
                             .toList()
                         : java.util.List.of()
                 );
+                map.put("deadlineEpochMs", r.getDeadlineEpochMs());
                 return ResponseEntity.ok(map);
             })
             .orElseGet(() -> ResponseEntity.notFound().build());

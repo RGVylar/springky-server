@@ -25,7 +25,7 @@ public class RoomService {
     private static final int MAX_PLAYERS = 8;
 
     // Duraciones (puedes ajustarlas)
-    private static final long PROMPT_DURATION_MS = 10_000;      // 10s para probar
+    private static final long PROMPT_DURATION_MS = 5_000;      // 10s para probar
     
 private static final List<String> PROMPTS = List.of(
     "Completa: Miyazaki desayuna ____",
@@ -105,7 +105,7 @@ private static final List<String> PROMPTS = List.of(
 
         String token = UUID.randomUUID().toString();
         playerTokens.put(token, code + ":" + playerId);
-
+        broadcast(room);
         return new Joined(playerId, token);
     }
 
@@ -282,7 +282,7 @@ private static final List<String> PROMPTS = List.of(
                     .build();
       room.setCurrentRound(round);
       
-      room.setDeadlineEpochMs(System.currentTimeMillis() + SUBMITTING_DURATION_MS);
+      room.setDeadlineEpochMs(System.currentTimeMillis() + PROMPT_DURATION_MS);
       broadcast(room);
     }
 

@@ -23,7 +23,14 @@
       <div class="row">
         <button id="startBtn" class="ok" disabled onclick="startGame()">Iniciar partida</button>
         <span id="status" class="muted"></span>
+        <div id="modeSelector" class="row" style="margin-bottom: 0.5rem; display: none;">
+          <span class="muted" style="margin-right: 0.5rem;">Modo:</span>
+          <button id="btnFast" type="button" class="pill" onclick="setMode('FAST')">Rápido</button>
+          <button id="btnManual" type="button" class="pill" onclick="setMode('MANUAL')">Manual</button>
+        </div>
       </div>
+
+      
     </section>
 
     <!-- PROMPT / SUBMITTING -->
@@ -65,7 +72,6 @@
       <div class="hr"></div>
       <button class="btn-secondary btn-block" onclick="backToLobby()">Volver al lobby</button>
     </section>
-
     <div class="hr"></div>
     <pre id="log" class="muted mono"></pre>
   </div>
@@ -298,6 +304,19 @@
       ["lobbyView", "playView", "scoreView", "votingView"].forEach(id =>
         document.getElementById(id).classList.toggle('hidden', id !== idToShow)
       );
+    }
+
+    async function setMode(mode) {
+      const r = await fetch(`/rooms/${CODE}/mode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Player-Token': PLAYER_TOKEN },
+        body: JSON.stringify({ mode })
+      });
+      if (r.ok) {
+        log("Modo cambiado a " + mode);
+      } else {
+        log("No se pudo cambiar el modo.");
+      }
     }
   </script>
 </body>

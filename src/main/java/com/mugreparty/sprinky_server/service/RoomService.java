@@ -40,7 +40,7 @@ private static final List<String> PROMPTS = List.of(
     }
 
     private static final long SUBMITTING_DURATION_MS = 30_000;  // 30s para probar
-    private static final long VOTING_DURATION_MS = 10_000; // 30s para FAST
+    private static final long VOTING_DURATION_MS = 15_000; // 30s para FAST
     private static final long SCORING_DURATION_MS = 5_000; // 30s para FAST
 
     private final SimpMessagingTemplate ws;
@@ -202,25 +202,44 @@ private static final List<String> PROMPTS = List.of(
               round.getAnswers().forEach((playerId, ans) -> {
                 if (ans != null && !ans.isBlank()) {
                   var p = room.getPlayers().get(playerId);
-                  if (p != null) p.setScore(p.getScore() + 1);
+                  if (p != null) p.setScore(p.getScore() + 100); // +100 por respuesta
                 }
               });
             }
             if (room.getMode() == GameMode.FAST) {
-              room.setDeadlineEpochMs(now + SCORING_DURATION_MS); // ⟵ auto-next
+              room.setDeadlineEpochMs(now + VOTING_DURATION_MS); // ⟵ auto-next
             } else {
               room.setDeadlineEpochMs(0);                          // ⟵ manual
             }
             broadcast(room);
           }
           case VOTING -> {
-            room.setState(GameState.SCORING);
-            if (room.getMode() == GameMode.FAST) {
-              room.setDeadlineEpochMs(now + VOTING_DURATION_MS);
-            } else {
-              room.setDeadlineEpochMs(0);
-            }
-            broadcast(room);
+              room.setState(GameState.SCORING);
+
+              var round = room.getCurrentRound();
+              if (round != null && round.getVotes() != null) {
+                  Map<String, Long> voteCounts = round.getVotes().values().stream()
+                      .collect(java.util.stream.Collectors.groupingBy(v -> v, java.util.stream.Collectors.counting()));
+
+                  int totalVotes = round.getVotes().size();
+                  voteCounts.forEach((playerId, votes) -> {
+                      Player p = room.getPlayers().get(playerId);
+                      if (p != null) {
+                          p.setScore(p.getScore() + votes.intValue() * 100);
+                          // BONUS: Si recibe el 100% de los votos, suma 2 puntos extra
+                          if (votes == totalVotes && totalVotes > 1) {
+                              p.setScore(p.getScore() + 200); // Puedes ajustar el bonus aquí
+                          }
+                      }
+                  });
+              }
+
+              if (room.getMode() == GameMode.FAST) {
+                room.setDeadlineEpochMs(now + SCORING_DURATION_MS);
+              } else {
+                room.setDeadlineEpochMs(0);
+              }
+              broadcast(room);
           }
           case SCORING -> {
             if (room.getMode() == GameMode.FAST) {
@@ -407,6 +426,11 @@ private static final List<String> PROMPTS = List.of(
 
       round.getVotes().put(playerId, votedPlayerId);
       broadcast(room);
+
+      // Si todos han votado, avanza automáticamente
+      if (round.getVotes().size() >= room.getPlayers().size()) {
+        advance(room);
+      }
   }
 }
 

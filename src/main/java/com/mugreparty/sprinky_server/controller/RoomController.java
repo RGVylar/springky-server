@@ -14,8 +14,11 @@ import com.mugreparty.sprinky_server.dto.JoinRoomRequest;
 import com.mugreparty.sprinky_server.dto.JoinRoomResponse;
 import com.mugreparty.sprinky_server.dto.SubmitAnswerRequest;
 import com.mugreparty.sprinky_server.service.RoomService;
+import com.mugreparty.sprinky_server.util.QrUtil;
+
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.ui.Model;
 
 
 @RestController
@@ -31,8 +34,25 @@ public class RoomController {
     @PostMapping
     public ResponseEntity<CreateRoomResponse> createRoom() {
         var created = roomService.createRoom();
-        return ResponseEntity.ok(new CreateRoomResponse(created.code(), created.hostToken()));
+        String joinUrl = "http://localhost:8080/rooms/" + created.code();
+        try {
+            String qrCodeBase64 = QrUtil.generateQrBase64(joinUrl);
+            return ResponseEntity.ok(new CreateRoomResponse(
+                created.code(),
+                created.hostToken(),
+                joinUrl,
+                qrCodeBase64
+            ));
+        } catch (Exception e) {
+            throw new RuntimeException("Error generando QR", e);
+        }
     }
+
+    //@GetMapping("/j/{code}")
+    //public String joinPage(@PathVariable String code, Model model) {
+    //    model.addAttribute("code", code);
+    //    return "join"; // Thymeleaf busca join.html en /templates
+    //}
 
     @PostMapping("/{code}/join")
     public ResponseEntity<JoinRoomResponse> joinRoom(
@@ -45,15 +65,26 @@ public class RoomController {
     @GetMapping("/{code}")
     public ResponseEntity<Map<String, Object>> getRoom(@PathVariable String code) {
         return roomService.find(code)
-            .map(r -> ResponseEntity.ok(Map.of(
-                "code", r.getCode(),
-                "state", r.getState().name(),
-                "roundNo", r.getRoundNo(),
-                "promptText", r.getCurrentRound() != null ? r.getCurrentRound().getPromptText() : null,    
-                "players", r.getPlayers().values().stream()
-                    .map(p -> Map.of("id", p.getId(), "nick", p.getNickname(), "score", p.getScore()))
-                    .toList()
-            )))
+            .map(r -> {
+                Map<String, Object> map = new java.util.HashMap<>();
+                map.put("code", r.getCode());
+                map.put("state", r.getState() != null ? r.getState().name() : null);
+                map.put("roundNo", r.getRoundNo());
+                map.put("promptText", 
+                    r.getCurrentRound() != null ? r.getCurrentRound().getPromptText() : null);
+                map.put("players",
+                    r.getPlayers() != null
+                        ? r.getPlayers().values().stream()
+                            .map(p -> Map.of(
+                                "id", p.getId(),
+                                "nick", p.getNickname(),
+                                "score", p.getScore()
+                            ))
+                            .toList()
+                        : java.util.List.of()
+                );
+                return ResponseEntity.ok(map);
+            })
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 

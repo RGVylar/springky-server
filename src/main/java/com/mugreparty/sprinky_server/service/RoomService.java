@@ -30,8 +30,8 @@ public class RoomService {
     // Duraciones (puedes ajustarlas)
     private static final long PROMPT_DURATION_MS = 5_000;      // 10s para probar
     private static final long SUBMITTING_DURATION_MS = 30_000; // 30s para probar
-    private static final long VOTING_DURATION_MS = 15_000; // 30s para FAST
-    private static final long SCORING_DURATION_MS = 5_000; // 30s para FAST
+    private static final long VOTING_DURATION_MS = 15_000; // 30s para AUTO
+    private static final long SCORING_DURATION_MS = 5_000; // 30s para AUTO
 
     private String getRandomPrompt() {
         var base = Prompts.PROMPTS;
@@ -65,7 +65,7 @@ public class RoomService {
         .state(GameState.LOBBY)
         .roundNo(0)
         .deadlineEpochMs(0)
-        .mode(GameMode.FAST) // Por defecto
+        .mode(GameMode.AUTO) // Por defecto
         .build();
 
         rooms.put(code, room);
@@ -201,7 +201,7 @@ public class RoomService {
                 }
               });
             }
-            if (room.getMode() == GameMode.FAST) {
+            if (room.getMode() == GameMode.AUTO) {
               room.setDeadlineEpochMs(now + VOTING_DURATION_MS); // ⟵ auto-next
             } else {
               room.setDeadlineEpochMs(0);                          // ⟵ manual
@@ -229,7 +229,7 @@ public class RoomService {
                   });
               }
 
-              if (room.getMode() == GameMode.FAST) {
+              if (room.getMode() == GameMode.AUTO) {
                 room.setDeadlineEpochMs(now + SCORING_DURATION_MS);
               } else {
                 room.setDeadlineEpochMs(0);
@@ -237,7 +237,7 @@ public class RoomService {
               broadcast(room);
           }
           case SCORING -> {
-            if (room.getMode() == GameMode.FAST) {
+            if (room.getMode() == GameMode.AUTO) {
               // auto pasar a la siguiente ronda
               nextRound(room);
               room.setState(GameState.PROMPT);
@@ -316,7 +316,7 @@ public class RoomService {
      * Cambia el modo de juego de la sala.
      * @param code Código de la sala
      * @param hostToken Token del host
-     * @param modeStr "FAST" o "MANUAL"
+     * @param modeStr "AUTO" o "MANUAL"
      */
     public void setMode(String code, String hostToken, String modeStr) {
         var room = rooms.get(code);
@@ -324,11 +324,11 @@ public class RoomService {
         var bound = hostTokens.get(hostToken);
         if (bound == null || !bound.startsWith(code + ":")) throw new IllegalArgumentException("HOST_TOKEN_INVALID");
       
-        var mode = GameMode.valueOf(modeStr.toUpperCase()); // "FAST" o "MANUAL"
+        var mode = GameMode.valueOf(modeStr.toUpperCase()); // "AUTO" o "MANUAL"
         room.setMode(mode);
       
-        // si está en SCORING y pasas a FAST, programa auto-next
-        if (room.getState() == GameState.SCORING && room.getDeadlineEpochMs() == 0 && mode == GameMode.FAST) {
+        // si está en SCORING y pasas a AUTO, programa auto-next
+        if (room.getState() == GameState.SCORING && room.getDeadlineEpochMs() == 0 && mode == GameMode.AUTO) {
           room.setDeadlineEpochMs(System.currentTimeMillis() + SCORING_DURATION_MS);
         }
         broadcast(room);
@@ -455,7 +455,7 @@ public class RoomService {
     room.setMode(mode);
 
     // mismo comportamiento que tenías en setMode()
-    if (room.getState() == GameState.SCORING && room.getDeadlineEpochMs() == 0 && mode == Room.GameMode.FAST) {
+    if (room.getState() == GameState.SCORING && room.getDeadlineEpochMs() == 0 && mode == Room.GameMode.AUTO) {
         room.setDeadlineEpochMs(System.currentTimeMillis() + SCORING_DURATION_MS);
     }
     broadcast(room);

@@ -10,7 +10,7 @@ Sprinky es un juego de completar frases en rondas. Un jugador crea una sala y co
 - **SUBMITTING:** Cada jugador envía su respuesta.
 - **SCORING:** Se reparten puntos y se avanza a la siguiente ronda.
 
-El juego soporta dos modos: **FAST**, donde la transición entre fases y rondas es automática tras un tiempo definido, y **MANUAL**, donde el anfitrión controla el avance.
+El juego soporta dos modos: **AUTO**, donde la transición entre fases y rondas es automática tras un tiempo definido, y **MANUAL**, donde el anfitrión controla el avance.
 
 ## Estado actual
 
@@ -20,7 +20,7 @@ Esta rama contiene la primera implementación funcional del servidor:
 - Gestión de tokens para anfitrión y jugadores.
 - Inicio de partida y avance por fases mediante un método programado que comprueba los deadlines.
 - Envío de respuestas de los jugadores y puntuación simple (una respuesta no vacía otorga un punto).
-- Modo FAST y MANUAL con lógica para programar el cambio de ronda o esperar al anfitrión.
+- Modo AUTO y MANUAL con lógica para programar el cambio de ronda o esperar al anfitrión.
 - Endpoints REST para crear sala, unirse, iniciar partida, enviar respuesta, avanzar de ronda manualmente y cambiar de modo.
 - Broadcast del estado de la sala a los clientes suscritos mediante WebSocket (`/topic/rooms/{code}`).
 

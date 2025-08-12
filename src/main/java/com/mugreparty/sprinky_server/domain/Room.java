@@ -20,7 +20,7 @@ public class Room {
     @Builder.Default
     private Map<String, Player> players = new LinkedHashMap<>();
         public enum GameMode {
-        FAST, MANUAL
+        AUTO, MANUAL
             }
     
     // GETTERS & SETTERS

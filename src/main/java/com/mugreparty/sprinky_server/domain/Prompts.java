@@ -1,0 +1,60 @@
+package com.mugreparty.sprinky_server.domain;
+
+import java.util.List;
+
+public final class Prompts {
+  private Prompts() {}
+
+  public static final List<String> PROMPTS = List.of(
+    "Completa: El apocalipsis empieza cuando ____",
+    "Completa: Mi villano favorito es ____",
+    "Completa: Lo último que vio mi abuelo fue ____",
+    "Completa: Si un genio me diera 3 deseos, pediría ____",
+    "Completa: La forma más rápida de hacer amigos es ____",
+    "Completa: El nuevo DLC de la Biblia incluye ____",
+    "Completa: La última búsqueda de mi historial es ____",
+    "Completa: Si gobierna mi país, lo primero que haría es ____",
+    "Completa: El mejor maridaje para la carne humana es ____",
+    "Completa: El título de mi documental de Netflix sería ____",
+    "Completa: Breaking Bad pero en vez de metanfetamina cocinan ____",
+    "Completa: Hitler en 2025 estaría haciendo directos de ____",
+    "Completa: Nueva skin de Fortnite: ____",
+    "Completa: El final alternativo de Titanic revela que ____",
+    "Completa: DLC sorpresa de Elden Ring: ____",
+    "Completa: Si la Tercera Guerra Mundial empieza en Twitch, el primer streamer en morir será ____",
+    "Completa: Shrek 5 tratará sobre ____",
+    "Completa: El último tweet de mi cuenta antes del baneo dirá ____",
+    "Completa: Nueva medida del gobierno: prohibido ____",
+    "Completa: Versión española de Avengers: Endgame con ____",
+    "Completa: En el remake de Harry Potter, Voldemort es sustituido por ____",
+    "Completa: Nuevo hechizo prohibido en Hogwarts: ____",
+    "Completa: Versión palestina de Squid Game, la primera prueba es ____",
+    "Completa: La final de Squid Game en mi barrio se decide con ____",
+    "Completa: En la guerra de Gaza, el DLC incluye ____",
+    "Completa: Si Harry Potter se desarrollara en 2025, la casa Slytherin estaría patrocinada por ____",
+    "Completa: Squid Game temporada 3: la prueba final es sobrevivir a ____",
+    "Completa: En el especial de Navidad de Gaza, Papá Noel reparte ____",
+    "Completa: Harry Potter pero en vez de varitas usan ____",
+    "Completa: La versión de Squid Game para streamers incluye un reto de ____",
+    "Completa: El parque temático de Israel tiene atracciones como ____",
+    "Completa: Si Israel organizara Eurovisión, la canción ganadora sería ____",
+    "Completa: Nueva expansión de Call of Duty: Israel Ops incluye la misión ____",
+    "Completa: En el remake de Harry Potter, Israel es la casa ____",
+    "Completa: Israel anuncia un live-action de ____",
+    "Completa: El DLC secreto de Assassin's Creed: Tel Aviv trata de ____",
+    "Completa: En el especial de Navidad en Israel, Papá Noel reparte ____",
+    "Completa: Nueva serie de Netflix: Squid Game Israel Edition, la primera prueba es ____",
+    "Completa: Si Israel tuviera un superhéroe, su poder principal sería ____",
+    "Completa: El modo historia de FIFA 25 en Israel empieza con ____",
+    "Completa: Nueva expansión de Age of Empires: Ucrania vs ____",
+    "Completa: En la versión ucraniana de Squid Game, la primera prueba es ____",
+    "Completa: Rusia anuncia que su próximo deporte nacional será ____",
+    "Completa: En el modo historia de Call of Duty: Rusia 2077, la misión inicial es ____",
+    "Completa: En el nuevo K-Drama de Corea del Sur, la trama gira en torno a ____",
+    "Completa: Versión coreana de Harry Potter, en vez de varitas usan ____",
+    "Completa: Nueva atracción turística en Venezuela: ____",
+    "Completa: En la telenovela venezolana del año, el giro final es que ____",
+    "Completa: En el DLC del Congo para Civilization VI, la unidad especial es ____",
+    "Completa: El festival anual del Congo este año incluye ____"
+    );
+}

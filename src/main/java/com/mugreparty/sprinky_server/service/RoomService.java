@@ -18,6 +18,7 @@ import com.mugreparty.sprinky_server.domain.Player;
 import com.mugreparty.sprinky_server.domain.Room;
 import com.mugreparty.sprinky_server.domain.Round;
 import com.mugreparty.sprinky_server.dto.StateUpdate;
+import com.mugreparty.sprinky_server.domain.Prompts;
 
 @Service // Logica de la sala
 public class RoomService {
@@ -26,22 +27,14 @@ public class RoomService {
 
     // Duraciones (puedes ajustarlas)
     private static final long PROMPT_DURATION_MS = 5_000;      // 10s para probar
-    
-private static final List<String> PROMPTS = List.of(
-    "Completa: Miyazaki desayuna ____",
-    "Completa: La vida es como ____",
-    "Completa: Mi color favorito es ____",
-    "Completa: En la playa encuentro ____"
-);
-
-
-    private String getRandomPrompt() {
-        return PROMPTS.get(random.nextInt(PROMPTS.size()));
-    }
-
-    private static final long SUBMITTING_DURATION_MS = 30_000;  // 30s para probar
+    private static final long SUBMITTING_DURATION_MS = 30_000; // 30s para probar
     private static final long VOTING_DURATION_MS = 15_000; // 30s para FAST
     private static final long SCORING_DURATION_MS = 5_000; // 30s para FAST
+
+    private String getRandomPrompt() {
+        var base = Prompts.PROMPTS;
+        return base.get(random.nextInt(base.size()));
+    }
 
     private final SimpMessagingTemplate ws;
     public RoomService(SimpMessagingTemplate ws) { this.ws = ws; }

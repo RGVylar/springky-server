@@ -13,4 +13,6 @@ public class Round {
     private String promptText;            // texto de la pregunta
     @Builder.Default
     private Map<String, String> answers = new LinkedHashMap<>(); // playerId -> answer
+    @Builder.Default
+    private Map<String, String> votes = new LinkedHashMap<>();   // playerId -> votedPlayerId
 }

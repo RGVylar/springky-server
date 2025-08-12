@@ -40,6 +40,7 @@ private static final List<String> PROMPTS = List.of(
     }
 
     private static final long SUBMITTING_DURATION_MS = 30_000;  // 30s para probar
+    private static final long VOTING_DURATION_MS = 10_000; // 30s para FAST
     private static final long SCORING_DURATION_MS = 5_000; // 30s para FAST
 
     private final SimpMessagingTemplate ws;
@@ -55,6 +56,10 @@ private static final List<String> PROMPTS = List.of(
     public record Created(String code, String hostToken) {}
     public record Joined(String playerId, String playerToken) {}
 
+    /**
+     * Crea una nueva sala con un código aleatorio y un host.
+     * @return Información de la sala creada
+     */
     public Created createRoom() {
         String code = nextCode();
         String hostId = UUID.randomUUID().toString();
@@ -76,6 +81,11 @@ private static final List<String> PROMPTS = List.of(
         return new Created(code, hostToken);
     }
 
+    /**
+     * Busca una sala por su código.
+     * @param code Código de la sala
+     * @return Sala encontrada o vacía si no existe
+     */
     public Optional<Room> find(String code) {        
         return Optional.ofNullable(rooms.get(code));
     }
@@ -109,6 +119,10 @@ private static final List<String> PROMPTS = List.of(
         return new Joined(playerId, token);
     }
 
+    /**
+     * Genera un código de sala aleatorio de 4 caracteres.
+     * @return Código único de sala
+     */
     public String nextCode() {
         char[] buf = new char[4];
         for (int i = 0; i < buf.length; i++) buf[i] = ALPH[random.nextInt(ALPH.length)];
@@ -116,6 +130,10 @@ private static final List<String> PROMPTS = List.of(
         return rooms.containsKey(code) ? nextCode() :code;
     }
 
+    /**
+     * Envía el estado de la sala a todos los suscriptores.
+     * @param room Sala a enviar
+     */
     private void broadcast(Room room) {
         var prompt = (room.getCurrentRound() != null) ? room.getCurrentRound().getPromptText() : null;
         int answersCount = room.getCurrentRound() != null ? room.getCurrentRound().getAnswers().size() : 0;
@@ -135,6 +153,11 @@ private static final List<String> PROMPTS = List.of(
         ws.convertAndSend("/topic/rooms/" + room.getCode(), view); 
     }
 
+    /**
+     * Inicia el juego por el host.
+     * @param code Código de la sala
+     * @param hostToken Token del host
+     */
     public void startGame(String code, String hostToken) {
         var room = rooms.get(code);
         if(room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
@@ -146,8 +169,9 @@ private static final List<String> PROMPTS = List.of(
        startGameInternal(room);
     }
 
-    
-
+    /**
+     * Ejecuta un tick cada segundo para verificar deadlines y avanzar estados.
+     */
     @Scheduled(fixedRate = 1_000)
     public void tick() {
         long now = System.currentTimeMillis();
@@ -158,6 +182,10 @@ private static final List<String> PROMPTS = List.of(
         });
     }
 
+    /**
+     * Avanza el estado de la sala según las reglas del juego.
+     * @param room Sala a avanzar
+     */
     private void advance(Room room) {
         long now = System.currentTimeMillis();
         switch (room.getState()) {
@@ -167,7 +195,7 @@ private static final List<String> PROMPTS = List.of(
             broadcast(room);
           }
           case SUBMITTING -> {
-            room.setState(GameState.SCORING);
+            room.setState(GameState.VOTING);
             // puntuación simple
             var round = room.getCurrentRound();
             if (round != null) {
@@ -185,6 +213,15 @@ private static final List<String> PROMPTS = List.of(
             }
             broadcast(room);
           }
+          case VOTING -> {
+            room.setState(GameState.SCORING);
+            if (room.getMode() == GameMode.FAST) {
+              room.setDeadlineEpochMs(now + VOTING_DURATION_MS);
+            } else {
+              room.setDeadlineEpochMs(0);
+            }
+            broadcast(room);
+          }
           case SCORING -> {
             if (room.getMode() == GameMode.FAST) {
               // auto pasar a la siguiente ronda
@@ -199,7 +236,7 @@ private static final List<String> PROMPTS = List.of(
           default -> { /* LOBBY/END: nada */ }
         }
       }      
-
+ 
     public void submitAnswer(String code, String playerToken, String answer) {
         var room = rooms.get(code);
         if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
@@ -220,6 +257,11 @@ private static final List<String> PROMPTS = List.of(
         broadcast(room);
     }
     
+    /**
+     * Inicia la siguiente ronda, asumiendo que ya se ha validado el estado.
+     * @param code Código de la sala
+     * @param hostToken Token del host
+     */
     public void startNextRound(String code, String hostToken) {
         var room = rooms.get(code);
         if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
@@ -242,8 +284,11 @@ private static final List<String> PROMPTS = List.of(
         broadcast(room);
     }
     
-    // Crea una nueva ronda en la sala (helper privado del servicio)
-      private void nextRound(Room room) {
+    /**
+     * Avanza a la siguiente ronda, reiniciando el estado.
+     * @param room Sala a avanzar
+     */
+    private void nextRound(Room room) {
         room.setRoundNo(room.getRoundNo() + 1);
 
         var round = Round.builder()
@@ -253,9 +298,12 @@ private static final List<String> PROMPTS = List.of(
         room.setCurrentRound(round);
     }
 
-
-    
-
+    /**
+     * Cambia el modo de juego de la sala.
+     * @param code Código de la sala
+     * @param hostToken Token del host
+     * @param modeStr "FAST" o "MANUAL"
+     */
     public void setMode(String code, String hostToken, String modeStr) {
         var room = rooms.get(code);
         if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
@@ -272,6 +320,10 @@ private static final List<String> PROMPTS = List.of(
         broadcast(room);
     }    
     
+    /**
+     * Inicia el juego internamente, asumiendo que ya se han validado las condiciones.
+     * @param room Sala a iniciar
+     */
     private void startGameInternal(Room room) {
       if (room.getPlayers().size() < 2 ) throw new IllegalArgumentException("NEED_2_PLAYERS_MIN");
       room.setState(GameState.PROMPT);
@@ -286,6 +338,12 @@ private static final List<String> PROMPTS = List.of(
       broadcast(room);
     }
 
+    /**
+     * Inicia el juego por cualquier jugador autorizado (host o primer jugador).
+     * @param code Código de la sala
+     * @param hostToken Token del host (opcional)
+     * @param playerToken Token del jugador (opcional)
+     */
     public void startGameByAnyAuthorized(String code, String hostToken, String playerToken) {
       var room = rooms.get(code);
       if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
@@ -315,6 +373,41 @@ private static final List<String> PROMPTS = List.of(
       throw new IllegalArgumentException("MISSING_TOKEN");
     }
 
+    /**
+     * Vota por otro jugador en la ronda actual.
+     * @param code Código de la sala
+     * @param playerToken Token del jugador que vota
+     * @param votedPlayerId ID del jugador al que se vota
+     */
+    public void vote(String code, String playerToken, String votedPlayerId) {
+      var room = rooms.get(code);
+      if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
+      if (room.getState() != GameState.VOTING) throw new IllegalArgumentException("NOT_VOTING");
+
+      var bound = playerTokens.get(playerToken); // "code:playerId"
+      if (bound == null || !bound.startsWith(code + ":")) throw new IllegalArgumentException("PLAYER_TOKEN_INVALID");
+
+      String playerId = bound.substring(code.length() + 1);
+
+      if (room.getPlayers().size() > 2 && playerId.equals(votedPlayerId)) {
+          throw new IllegalArgumentException("NO_SELF_VOTE");
+      }
+
+      // Guarda los votos en la ronda actual
+      var round = room.getCurrentRound();
+      if (round == null) throw new IllegalStateException("NO_ROUND");
+
+      // Crea el mapa de votos si no existe
+      if (round.getVotes() == null) {
+          round.setVotes(new java.util.HashMap<>());
+      }
+
+      // Solo se permite un voto por jugador
+      if (round.getVotes().containsKey(playerId)) return;
+
+      round.getVotes().put(playerId, votedPlayerId);
+      broadcast(room);
+  }
 }
 
 

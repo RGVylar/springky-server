@@ -78,6 +78,11 @@ public class RoomController {
                         : java.util.List.of()
                 );
                 map.put("deadlineEpochMs", r.getDeadlineEpochMs());
+                map.put("answers",
+                    r.getCurrentRound() != null && r.getCurrentRound().getAnswers() != null
+                        ? r.getCurrentRound().getAnswers()
+                        : Map.of()
+                );
                 return ResponseEntity.ok(map);
             })
             .orElseGet(() -> ResponseEntity.notFound().build());
@@ -115,6 +120,17 @@ public class RoomController {
                                         @RequestHeader("X-Host-Token") String hostToken) {
     roomService.setMode(code, hostToken, mode);
     return ResponseEntity.accepted().build();
+    }
+
+    @PostMapping("/{code}/vote")
+    public ResponseEntity<Void> vote(
+        @PathVariable String code,
+        @RequestHeader("X-Player-Token") String playerToken,
+        @RequestBody Map<String, String> body
+    ) {
+        String votedPlayerId = body.get("playerId");
+        roomService.vote(code, playerToken, votedPlayerId);
+        return ResponseEntity.accepted().build();
     }
 
 }

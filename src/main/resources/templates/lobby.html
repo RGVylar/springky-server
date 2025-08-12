@@ -43,7 +43,17 @@
       <div class="hr"></div>
       <button class="btn-secondary btn-block" onclick="backToLobby()">Volver al lobby</button>
     </section>
-
+    <!-- VOTING -->
+    <section id="votingView" class="hidden">
+      <div class="row">
+        <span class="pill">VOTACIÓN</span>
+        <span id="votingDeadline" class="pill countdown mono">00:00</span>
+      </div>
+      <p class="muted">Vota tu respuesta favorita:</p>
+      <ul id="answersList"></ul>
+      <div class="hr"></div>
+      <button class="btn-secondary btn-block" onclick="backToLobby()">Volver al lobby</button>
+    </section>
     <!-- SCORING -->
     <section id="scoreView" class="hidden">
       <div class="row">
@@ -81,6 +91,7 @@
     let LAST_STATE = null;
     let DEADLINE_MS = 0;
     let countdownTimer = null;
+    let stayInLobby = false;
 
     const $ = sel => document.querySelector(sel);
     const show = (id, on=true) => (document.getElementById(id).classList.toggle('hidden', !on), on);
@@ -118,6 +129,7 @@
 
     // -------------------- REST / UI logic --------------------
     async function refresh(){
+      if(stayInLobby) return; // si estamos en lobby, no refrescar
       const res = await fetch(`/rooms/${CODE}`);
       if(!res.ok){ log("No se pudo cargar room"); return; }
       const room = await res.json();
@@ -147,18 +159,14 @@
       DEADLINE_MS = room.deadlineEpochMs || 0;
 
       if(state === "LOBBY"){
-        show("lobbyView", true);
-        show("playView", false);
-        show("scoreView", false);
+        showOnly("lobbyView");
         clearInterval(countdownTimer);
         document.getElementById("deadline").textContent = "00:00";
         document.getElementById("scoreDeadline").textContent = "00:00";
       }
       else if(state === "PROMPT" || state === "SUBMITTING"){
         // setup
-        show("lobbyView", false);
-        show("playView", true);
-        show("scoreView", false);
+        showOnly("playView");
 
         document.getElementById("promptText").textContent = room.promptText || "Sin frase";
         document.getElementById("phasePill").textContent = state;
@@ -174,10 +182,31 @@
         if(DEADLINE_MS > 0) setCountdown(DEADLINE_MS, "deadline");
         else document.getElementById("deadline").textContent = "00:00";
       }
+      else if(state === "VOTING"){
+      showOnly("votingView");
+
+        // Mostrar las respuestas para votar
+        const answersList = document.getElementById('answersList');
+        answersList.innerHTML = "";
+        if(room.answers){
+          Object.entries(room.answers).forEach(([playerId, answer]) => {
+            const li = document.createElement('li');
+            li.textContent = answer;
+            // Aquí puedes añadir un botón para votar
+            const btn = document.createElement('button');
+            btn.textContent = "Votar";
+            btn.onclick = () => voteAnswer(playerId);
+            li.appendChild(btn);
+            answersList.appendChild(li);
+          });
+        }
+
+        clearInterval(countdownTimer);
+        if(DEADLINE_MS > 0) setCountdown(DEADLINE_MS, "votingDeadline");
+        else document.getElementById("votingDeadline").textContent = "00:00";
+      }
       else if(state === "SCORING"){
-        show("lobbyView", false);
-        show("playView", false);
-        show("scoreView", true);
+      showOnly("scoreView");
 
         // pintar scores actuales
         const sul = document.getElementById('scorePlayers'); sul.innerHTML = "";
@@ -246,9 +275,29 @@
     }
 
     function backToLobby(){
+      stayInLobby = true;
       show("lobbyView", true);
       show("playView", false);
       show("scoreView", false);
+    }
+
+    async function voteAnswer(playerId){
+      const r = await fetch(`/rooms/${CODE}/vote`, {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', 'X-Player-Token': PLAYER_TOKEN },
+        body: JSON.stringify({ playerId })
+      });
+      if(r.ok){
+        log("¡Voto enviado!");
+      }else{
+        log("No se pudo votar.");
+      }
+    }
+
+    function showOnly(idToShow) {
+      ["lobbyView", "playView", "scoreView", "votingView"].forEach(id =>
+        document.getElementById(id).classList.toggle('hidden', id !== idToShow)
+      );
     }
   </script>
 </body>

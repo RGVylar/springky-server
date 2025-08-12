@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Unirse a la partida</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2rem; background: #f9f9f9; }
+    h1 { color: #333; }
+    input, button { padding: 0.5rem; font-size: 1rem; margin-top: 1rem; }
+    button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+    button:hover { background-color: #0056b3; }
+  </style>
+</head>
+<body>
+  <h1 th:text="'Unirse a la sala ' + ${code}">Unirse a la sala</h1>
+
+  <input type="text" id="nickname" placeholder="Tu nombre">
+  <br>
+  <button onclick="joinRoom()">Unirse</button>
+  <p id="msg"></p>
+
+  <script th:inline="javascript">
+    const CODE = /*[[${code}]]*/ 'XXXX';
+  </script>
+  <script>
+    function joinRoom() {
+      const nick = document.getElementById('nickname').value.trim();
+      if (!nick) { document.getElementById('msg').textContent = "Pon un nombre"; return; }
+      fetch(`/rooms/${CODE}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nickname: nick })
+      })
+      .then(res => res.ok ? res.json() : Promise.reject(new Error("Error al unirse")))
+      .then(() => document.getElementById('msg').textContent = "Unido como " + nick + " ✅")
+      .catch(err => document.getElementById('msg').textContent = err.message);
+    }
+  </script>
+</body>
+</html>

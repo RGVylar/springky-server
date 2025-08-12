@@ -48,12 +48,6 @@ public class RoomController {
         }
     }
 
-    //@GetMapping("/j/{code}")
-    //public String joinPage(@PathVariable String code, Model model) {
-    //    model.addAttribute("code", code);
-    //    return "join"; // Thymeleaf busca join.html en /templates
-    //}
-
     @PostMapping("/{code}/join")
     public ResponseEntity<JoinRoomResponse> joinRoom(
         @PathVariable String code,
@@ -88,11 +82,13 @@ public class RoomController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
-    @PostMapping("/{code}/start")
+   @PostMapping("/{code}/start")
     public ResponseEntity<Void> start(
         @PathVariable String code,
-        @RequestHeader("X-Host-Token") String hostToken) {
-        roomService.startGame(code, hostToken);
+        @RequestHeader(value = "X-Host-Token", required = false) String hostToken,
+        @RequestHeader(value = "X-Player-Token", required = false) String playerToken
+    ) {
+        roomService.startGameByAnyAuthorized(code, hostToken, playerToken);
         return ResponseEntity.accepted().build();
     }
 

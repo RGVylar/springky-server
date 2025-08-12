@@ -15,12 +15,17 @@ public class Room {
     private long deadlineEpochMs;
     private Round currentRound;
     private GameMode mode;
+    private String firstPlayerId;
 
     @Builder.Default
     private Map<String, Player> players = new LinkedHashMap<>();
         public enum GameMode {
         FAST, MANUAL
             }
+    
+    // GETTERS & SETTERS
+    public String getFirstPlayerId() { return firstPlayerId; }
+    public void setFirstPlayerId(String id) { this.firstPlayerId = id; }
 
     }
 

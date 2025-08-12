@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="es" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title th:text="'Sala ' + ${code}">Sala</title>
+  <style>
+    body{font-family:sans-serif;display:grid;place-items:center;min-height:100dvh;background:#0b0c10;color:#e5e7eb}
+    .card{background:#15171c;padding:1.5rem;border-radius:16px;box-shadow:0 10px 30px rgb(0 0 0 / .3);width:min(680px,92vw)}
+    .row{display:flex;gap:.5rem;flex-wrap:wrap;margin:.5rem 0}
+    input,button{padding:.6rem .9rem;border-radius:10px;border:0}
+    input{flex:1;min-width:160px;background:#0f1116;color:#e5e7eb;border:1px solid #2a2d34}
+    button{background:#3b82f6;color:white;cursor:pointer}
+    ul{list-style:none;padding:0;margin:.5rem 0;display:grid;gap:.25rem}
+    .muted{opacity:.7}
+    .danger{background:#ef4444}
+    .ok{background:#22c55e}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Lobby — sala <span id="code" th:text="${code}">XXXX</span></h2>
+
+    <div id="joinBox" class="row">
+      <input id="nickname" placeholder="Tu nombre"/>
+      <button onclick="join()">Unirse</button>
+    </div>
+
+    <p class="muted">Jugadores</p>
+    <ul id="players"></ul>
+
+    <div class="row">
+      <button id="startBtn" class="ok" disabled onclick="startGame()">Iniciar partida</button>
+      <span id="status" class="muted"></span>
+    </div>
+
+    <pre id="log" class="muted" style="max-height:180px;overflow:auto"></pre>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+  <script th:inline="javascript">
+    const CODE = /*[[${code}]]*/ "XXXX";
+    const WS_ENDPOINT = /*[[${wsEndpoint}]]*/ "/ws";
+    const ROOM_TOPIC  = /*[[${roomTopic}]]*/ "/topic/rooms/XXXX";
+  </script>
+
+  <script>
+    const log = m => document.getElementById('log').textContent += m + "\n";
+    let PLAYER_TOKEN = localStorage.getItem(`sprinky:${CODE}:token`) || null;
+
+    // Estado inicial
+    refresh();
+
+    // WS
+    const sock = new SockJS(WS_ENDPOINT);
+    const stomp = Stomp.over(sock); stomp.debug = null;
+    stomp.connect({}, () => {
+      log("WS conectado");
+      stomp.subscribe(ROOM_TOPIC, msg => {
+        log("UPDATE: " + msg.body);
+        refresh(); // cada update, refrescamos la lista y el botón
+      });
+    }, err => log("WS ERROR: " + err));
+
+    async function refresh(){
+      const res = await fetch(`/rooms/${CODE}`);
+      if(!res.ok) return;
+      const room = await res.json();
+      // pinta jugadores
+      const ul = document.getElementById('players'); ul.innerHTML = "";
+      const players = (room.players || []);
+      players.forEach(p => {
+        const li = document.createElement('li');
+        li.textContent = `${p.nick} (${p.score ?? 0})`;
+        ul.appendChild(li);
+      });
+      // habilita "Iniciar" si hay al menos 2 jugadores
+      document.getElementById('startBtn').disabled = players.length < 2 || !PLAYER_TOKEN;
+      document.getElementById('status').textContent =
+        players.length < 2 ? "Esperando a que se una otra persona…" :
+        (!PLAYER_TOKEN ? "Únete para poder iniciar." : "Listo para iniciar.");
+    }
+
+    async function join(){
+      const nick = document.getElementById('nickname').value.trim();
+      if(!nick) return;
+      const r = await fetch(`/rooms/${CODE}/join`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ nickname: nick })
+      });
+      if(!r.ok){ log("Join falló"); return; }
+      const data = await r.json(); // { playerId, playerToken }
+      PLAYER_TOKEN = data.playerToken;
+      localStorage.setItem(`sprinky:${CODE}:token`, PLAYER_TOKEN);
+      document.getElementById('joinBox').style.display = 'none';
+      refresh();
+    }
+
+    async function startGame(){
+      const r = await fetch(`/rooms/${CODE}/start`, {
+        method:'POST',
+        headers: { 'X-Player-Token': PLAYER_TOKEN }
+      });
+      if(r.status === 202) log("Partida iniciada 🎉");
+      else if(r.status === 403) log("Solo el primero que entró puede iniciar.");
+      else if(r.status === 409) log("Necesitáis al menos 2 jugadores o ya está iniciada.");
+      else if(r.status === 401) log("Falta autenticación.");
+      else log("No se pudo iniciar.");
+    }
+  </script>
+</body>
+</html>

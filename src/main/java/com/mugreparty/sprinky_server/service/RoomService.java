@@ -90,6 +90,10 @@ private static final List<String> PROMPTS = List.of(
         if (taken) throw new IllegalArgumentException("NICK_TAKEN");
 
         String playerId = UUID.randomUUID().toString();
+        if (room.getFirstPlayerId() == null){
+          room.setFirstPlayerId(playerId);
+        }
+
         var p = Player.builder()
                 .id(playerId)
                 .nickname(nickname)
@@ -97,7 +101,6 @@ private static final List<String> PROMPTS = List.of(
                 .connected(true)
                 .lastSeenEpochMs(Instant.now().toEpochMilli())
                 .build();
-
         room.getPlayers().put(playerId, p);
 
         String token = UUID.randomUUID().toString();
@@ -140,23 +143,10 @@ private static final List<String> PROMPTS = List.of(
         if(bound == null || !bound.startsWith(code + ":"))
           throw new IllegalArgumentException("HOST_TOKEN_INVALID");
 
-        if(room.getPlayers().size() < 2) throw new IllegalArgumentException("NEED_2_PLAYERS_MIN");
-
-        room.setState((GameState.PROMPT));
-        room.setRoundNo(room.getRoundNo() + 1 );
-
-        var round = Round.builder()
-                .promptId("q"+room.getRoundNo())
-
-        .promptText(getRandomPrompt())
-                .build();
-        room.setCurrentRound(round);
-
-        long now = System.currentTimeMillis();
-        room.setDeadlineEpochMs(System.currentTimeMillis() + 30_000); //30 segundos
-
-        broadcast(room);
+       startGameInternal(room);
     }
+
+    
 
     @Scheduled(fixedRate = 1_000)
     public void tick() {
@@ -280,7 +270,50 @@ private static final List<String> PROMPTS = List.of(
           room.setDeadlineEpochMs(System.currentTimeMillis() + SCORING_DURATION_MS);
         }
         broadcast(room);
-    }      
+    }    
+    
+    private void startGameInternal(Room room) {
+      if (room.getPlayers().size() < 2 ) throw new IllegalArgumentException("NEED_2_PLAYERS_MIN");
+      room.setState(GameState.PROMPT);
+      room.setRoundNo(room.getRoundNo() + 1);
+      var round = Round.builder()
+                    .promptId("q" + room.getRoundNo())
+                    .promptText(getRandomPrompt())
+                    .build();
+      room.setCurrentRound(round);
+      
+      room.setDeadlineEpochMs(System.currentTimeMillis() + SUBMITTING_DURATION_MS);
+      broadcast(room);
+    }
+
+    public void startGameByAnyAuthorized(String code, String hostToken, String playerToken) {
+      var room = rooms.get(code);
+      if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
+
+      // HOST
+      if (hostToken != null && !hostToken.isBlank()) {
+        var bound = hostTokens.get(hostToken);
+        if (bound == null || !bound.startsWith(code + ":"))
+          throw new IllegalArgumentException("HOST_TOKEN_INVALID");
+        startGameInternal(room);
+        return;
+      }
+
+      // FIRST PLAYER
+      if (playerToken != null && !playerToken.isBlank()) {
+        var bound = playerTokens.get(playerToken); // "code:playerId
+        if (bound == null || !bound.startsWith(code + ":"))
+            throw new IllegalArgumentException("PLAYER_TOKEN_INVALID");
+        
+        String playerId = bound.substring(code.length() + 1);
+        if (room.getFirstPlayerId() == null || !room.getFirstPlayerId().equals(playerId))
+          throw new IllegalArgumentException("ONLY_FIRST_PLAYER");
+
+        startGameInternal(room);
+        return;
+      }
+      throw new IllegalArgumentException("MISSING_TOKEN");
+    }
 
 }
 

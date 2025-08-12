@@ -23,5 +23,10 @@ public class ViewController {
         model.addAttribute("roomTopic", "/topic/rooms/" + code);
         return "lobby";
     }
+
+    @GetMapping("/lobby")
+    public String enterLobbyCode() {
+        return "enter-code";
+    }
     
 }

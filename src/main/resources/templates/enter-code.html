@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Entrar a una sala</title>
+  <link rel="stylesheet" href="/lobby.css">
+</head>
+<body>
+  <div class="card">
+    <h2 class="title">Entrar a una sala</h2>
+    <p class="muted">Introduce el <strong>código de 4 caracteres</strong> para unirte.</p>
+
+    <div class="row">
+      <input id="code"
+       class="mono"
+       maxlength="4"
+       placeholder="ABCD"
+       oninput="this.value=this.value.toUpperCase()"
+       autocapitalize="characters"
+       autocorrect="off"
+       spellcheck="false"
+       enterkeyhint="go"
+       inputmode="latin" />
+      <button id="goBtn" onclick="go()" disabled>Ir</button>
+    </div>
+
+    <div class="hr"></div>
+    <p class="muted">También puedes abrir el enlace/QR que comparta el anfitrión.</p>
+  </div>
+
+  <script>
+    const code = document.getElementById('code');
+    const btn  = document.getElementById('goBtn');
+
+    // habilitar botón solo cuando hay 4 caracteres
+    const updateBtn = () => btn.disabled = code.value.trim().length !== 4;
+    code.addEventListener('input', updateBtn);
+
+    // enter para enviar
+    code.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !btn.disabled) go();
+    });
+
+    // foco inicial
+    window.addEventListener('DOMContentLoaded', () => code.focus());
+
+    function go(){
+      const c = code.value.trim().toUpperCase();
+      if (c.length === 4) location.href = `/rooms/lobby/${c}`;
+    }
+  </script>
+</body>
+</html>

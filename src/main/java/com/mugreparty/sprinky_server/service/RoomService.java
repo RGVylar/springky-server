@@ -8,9 +8,11 @@ import java.util.UUID;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.mugreparty.sprinky_server.domain.Room.GameMode;
 import com.mugreparty.sprinky_server.domain.GameState;
@@ -425,6 +427,40 @@ public class RoomService {
         advance(room);
       }
   }
+
+  public void setModeByAnyAuthorized(String code, String hostToken, String playerToken, String modeStr) {
+    var room = rooms.get(code);
+    if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
+
+    boolean authorized = false;
+
+    // ¿Es el host?
+    if (hostToken != null && !hostToken.isBlank()) {
+        var bound = hostTokens.get(hostToken); // "CODE:hostId"
+        authorized = (bound != null && bound.startsWith(code + ":"));
+    }
+
+    // ¿Es el primer jugador?
+    if (!authorized && playerToken != null && !playerToken.isBlank()) {
+        var bound = playerTokens.get(playerToken); // "CODE:playerId"
+        if (bound != null && bound.startsWith(code + ":")) {
+            String playerId = bound.substring(code.length() + 1);
+            authorized = (room.getFirstPlayerId() != null && room.getFirstPlayerId().equals(playerId));
+        }
+    }
+
+    if (!authorized) throw new IllegalArgumentException("NOT_AUTHORIZED");
+
+    var mode = Room.GameMode.valueOf(modeStr.toUpperCase());
+    room.setMode(mode);
+
+    // mismo comportamiento que tenías en setMode()
+    if (room.getState() == GameState.SCORING && room.getDeadlineEpochMs() == 0 && mode == Room.GameMode.FAST) {
+        room.setDeadlineEpochMs(System.currentTimeMillis() + SCORING_DURATION_MS);
+    }
+    broadcast(room);
+  }
+
 }
 
 

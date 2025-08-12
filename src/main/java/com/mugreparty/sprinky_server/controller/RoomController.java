@@ -83,6 +83,9 @@ public class RoomController {
                         ? r.getCurrentRound().getAnswers()
                         : Map.of()
                 );
+                map.put("firstPlayerId", r.getFirstPlayerId());
+                map.put("mode", r.getMode().name());
+
                 return ResponseEntity.ok(map);
             })
             .orElseGet(() -> ResponseEntity.notFound().build());
@@ -133,4 +136,16 @@ public class RoomController {
         return ResponseEntity.accepted().build();
     }
 
+    @PostMapping("/{code}/mode")
+    public ResponseEntity<Void> setModeByAnyAuthorized(
+        @PathVariable String code,
+        @RequestHeader(value = "X-Host-Token", required = false) String hostToken,
+        @RequestHeader(value = "X-Player-Token", required = false) String playerToken,
+        @RequestBody Map<String, String> body
+    ){
+        String mode = body.get("mode");
+        roomService.setModeByAnyAuthorized(code, hostToken, playerToken, mode);
+        return ResponseEntity.accepted().build();
+    }
+    
 }

@@ -23,11 +23,11 @@
       <div class="row">
         <button id="startBtn" class="ok" disabled onclick="startGame()">Iniciar partida</button>
         <span id="status" class="muted"></span>
-        <div id="modeSelector" class="row" style="margin-bottom: 0.5rem; display: none;">
-          <span class="muted" style="margin-right: 0.5rem;">Modo:</span>
-          <button id="btnFast" type="button" class="pill" onclick="setMode('FAST')">Rápido</button>
-          <button id="btnManual" type="button" class="pill" onclick="setMode('MANUAL')">Manual</button>
-        </div>
+      </div>
+      <div id="modeSelector" class="row" style="margin-bottom: 0.5rem; display: none;">
+        <span class="muted" style="margin-right: 0.5rem;">Modo:</span>
+        <button id="btnFast" type="button" class="pill" onclick="setMode('FAST')">Rápido</button>
+        <button id="btnManual" type="button" class="pill" onclick="setMode('MANUAL')">Manual</button>
       </div>
 
       
@@ -94,6 +94,14 @@
       el.scrollTop = el.scrollHeight; // <-- autoscroll al final
     };
     let PLAYER_TOKEN = localStorage.getItem(`sprinky:${CODE}:token`) || null;
+    let PLAYER_ID    = localStorage.getItem(`sprinky:${CODE}:id`)    || null;
+
+    // si quedó token viejo sin id, forzamos rejoin
+    if (PLAYER_TOKEN && !PLAYER_ID) {
+      localStorage.removeItem(`sprinky:${CODE}:token`);
+      PLAYER_TOKEN = null;
+    }
+
     let LAST_STATE = null;
     let DEADLINE_MS = 0;
     let countdownTimer = null;
@@ -163,6 +171,12 @@
       const state = room.state || "LOBBY";
       LAST_STATE = state;
       DEADLINE_MS = room.deadlineEpochMs || 0;
+      //const esHost = room.firstPlayerId && room.firstPlayerId === (room.players.find(p => p.token === PLAYER_TOKEN)?.id);
+      
+      const esHost = !!(room.firstPlayerId && PLAYER_ID && room.firstPlayerId === PLAYER_ID);
+
+      document.getElementById("modeSelector").style.display = (state === "LOBBY" && esHost) ? "flex" : "none";
+      log(`first=${room.firstPlayerId} me=${PLAYER_ID} host=${esHost}`);
 
       if(state === "LOBBY"){
         showOnly("lobbyView");
@@ -237,9 +251,13 @@
         body: JSON.stringify({ nickname: nick })
       });
       if(!r.ok){ log("Join falló"); return; }
+  
       const data = await r.json(); // { playerId, playerToken }
       PLAYER_TOKEN = data.playerToken;
+      PLAYER_ID    = data.playerId; 
       localStorage.setItem(`sprinky:${CODE}:token`, PLAYER_TOKEN);
+      localStorage.setItem(`sprinky:${CODE}:id`,    PLAYER_ID);
+
       document.getElementById('joinBox').style.display = 'none';
       refresh();
     }

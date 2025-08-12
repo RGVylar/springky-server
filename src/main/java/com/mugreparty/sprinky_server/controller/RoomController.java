@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.mugreparty.sprinky_server.dto.CreateRoomResponse;
 import com.mugreparty.sprinky_server.dto.JoinRoomRequest;
@@ -15,6 +16,8 @@ import com.mugreparty.sprinky_server.dto.JoinRoomResponse;
 import com.mugreparty.sprinky_server.dto.SubmitAnswerRequest;
 import com.mugreparty.sprinky_server.service.RoomService;
 import com.mugreparty.sprinky_server.util.QrUtil;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -32,9 +35,15 @@ public class RoomController {
     }
 
     @PostMapping
-    public ResponseEntity<CreateRoomResponse> createRoom() {
+    public ResponseEntity<CreateRoomResponse> createRoom(HttpServletRequest req) {
         var created = roomService.createRoom();
-        String joinUrl = "http://localhost:8080/rooms/" + created.code();
+        String joinUrl = ServletUriComponentsBuilder
+            .fromRequestUri(req)
+            .replacePath("/rooms/" + created.code())
+            .replaceQuery(null)
+            .build()
+            .toUriString();
+
         try {
             String qrCodeBase64 = QrUtil.generateQrBase64(joinUrl);
             return ResponseEntity.ok(new CreateRoomResponse(

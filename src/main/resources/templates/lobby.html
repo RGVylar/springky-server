@@ -176,6 +176,7 @@
       const esHost = !!(room.firstPlayerId && PLAYER_ID && room.firstPlayerId === PLAYER_ID);
 
       document.getElementById("modeSelector").style.display = (state === "LOBBY" && esHost) ? "flex" : "none";
+      document.getElementById("startBtn").style.display = esHost ? "inline-block" : "none";
       log(`first=${room.firstPlayerId} me=${PLAYER_ID} host=${esHost}`);
 
       if(state === "LOBBY"){

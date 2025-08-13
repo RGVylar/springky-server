@@ -39,7 +39,7 @@ public class RoomController {
         var created = roomService.createRoom();
         String joinUrl = ServletUriComponentsBuilder
             .fromRequestUri(req)
-            .replacePath("/rooms/" + created.code())
+            .replacePath("/rooms/lobby/" + created.code())
             .replaceQuery(null)
             .build()
             .toUriString();

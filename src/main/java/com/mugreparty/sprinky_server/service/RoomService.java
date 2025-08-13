@@ -85,6 +85,12 @@ public class RoomService {
         return Optional.ofNullable(rooms.get(code));
     }
 
+    /**
+     * Permite a un jugador unirse a una sala existente.
+     * @param code Código de la sala
+     * @param nickname Apodo del jugador
+     * @return Información del jugador unido
+     */
     public Joined join(String code, String nickname) {
         var room = rooms.get(code);
         if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
@@ -269,6 +275,11 @@ public class RoomService {
     
         round.getAnswers().put(playerId, answer.trim());
         broadcast(room);
+        
+        // Si todos han respondido, avanza automáticamente
+        if (round.getAnswers().size() >= room.getPlayers().size()) {
+          advance(room);
+        }
     }
     
     /**
@@ -428,6 +439,13 @@ public class RoomService {
       }
   }
 
+    /**
+     * Cambia el modo de juego por cualquier jugador autorizado (host o primer jugador).
+     * @param code Código de la sala
+     * @param hostToken Token del host (opcional)
+     * @param playerToken Token del jugador (opcional)
+     * @param modeStr "AUTO" o "MANUAL"
+     */
   public void setModeByAnyAuthorized(String code, String hostToken, String playerToken, String modeStr) {
     var room = rooms.get(code);
     if (room == null) throw new IllegalArgumentException("ROOM_NOT_FOUND");
